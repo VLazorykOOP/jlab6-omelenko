@@ -2,18 +2,92 @@ import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import javax.swing.*;
+import java.io.*;
+import java.util.Scanner;
 
+class InvalidSpeedException extends ArithmeticException {
+    public InvalidSpeedException(String message) {
+        super(message);
+    }
+}
 
+class Config {
+    String text;
+    Color color;
+    int length;
+    int speed;
+
+    public static Config loadFromFile(String fileName)
+            throws FileNotFoundException, NumberFormatException, InvalidSpeedException {
+
+        Scanner sc = new Scanner(new File(fileName));
+        Config cfg = new Config();
+
+        while (sc.hasNextLine()) {
+            String line = sc.nextLine().trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+
+            String[] parts = line.split("=");
+            if (parts.length != 2) continue;
+
+            String key = parts[0].trim();
+            String value = parts[1].trim();
+
+            switch (key.toLowerCase()) {
+                case "text" -> cfg.text = value;
+                case "length" -> cfg.length = Integer.parseInt(value);
+                case "speed" -> {
+                    cfg.speed = Integer.parseInt(value);
+                    if (cfg.speed <= 0) {
+                        throw new InvalidSpeedException("Швидкість повинна бути > 0, знайдено: " + cfg.speed);
+                    }
+                }
+                case "color" -> cfg.color = switch (value.toLowerCase()) {
+                    case "red" -> Color.RED;
+                    case "green" -> Color.GREEN;
+                    case "blue" -> Color.BLUE;
+                    case "orange" -> Color.ORANGE;
+                    case "gray" -> Color.GRAY;
+                    default -> Color.BLACK;
+                };
+            }
+        }
+
+        sc.close();
+        if (cfg.text == null) cfg.text = "Привіт, я рухаюсь!";
+        if (cfg.color == null) cfg.color = Color.RED;
+        if (cfg.length == 0) cfg.length = 100;
+        if (cfg.speed == 0) cfg.speed = 3;
+
+        return cfg;
+    }
+}
 
 class MovingPanel extends JPanel {
     private int x = 0;
     private int y = 100;
-    private final int length = 120;
-    private final String movingText = "Moving";
+    private int length = 120;
+    private String movingText = "Moving";
     private int dx = 3;
 
     private Color currentColor = Color.RED;
     private Color selectedColor = Color.RED;
+
+    public MovingPanel(Config cfg) {
+        setBackground(Color.WHITE);
+        this.length = cfg.length;
+        this.dx = cfg.speed;
+        this.currentColor = cfg.color;
+        this.selectedColor = cfg.color;
+        this.movingText = cfg.text;
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                y = getHeight() / 2;
+            }
+        });
+    }
 
     public MovingPanel() {
         setBackground(Color.WHITE);
@@ -84,9 +158,14 @@ class MovingPanel extends JPanel {
 public class Task1 {
 
     public static void main(String[] args) {
+
+        try {
+
+        Config config = Config.loadFromFile("config.txt");
+
         JFrame frame = new JFrame("Рухомий рядок");
 
-        final MovingPanel panel = new MovingPanel();
+        final MovingPanel panel = new MovingPanel(config);
         frame.add(panel, BorderLayout.CENTER);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(true);
@@ -116,6 +195,18 @@ public class Task1 {
 
         panel.setSelectedColor(colors[combo.getSelectedIndex()]);
         panel.startAnimation();
+
+        } catch (FileNotFoundException e) {
+            System.out.println("Файл конфігурації не знайдено!");
+        } catch (NumberFormatException e) {
+            System.out.println("Помилка формату даних у файлі!");
+        } catch (InvalidSpeedException e) {
+            System.out.println("Власне виключення: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Інша помилка: " + e.getMessage());
+        } finally {
+            System.out.println("Програма завершила роботу.");
+        }
     }
 }
 

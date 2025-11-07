@@ -1,0 +1,4 @@
+text=Sample Text
+length=200
+speed=3
+color=green
